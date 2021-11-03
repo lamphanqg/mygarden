@@ -1,0 +1,143 @@
+version: "3.7"
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: ./docker/Dockerfile
+    args:
+      RUBY_VERSION: 3.0.2
+      NODE_MAJOR: 14
+      YARN_VERSION: 1.22.15
+      BUNDLER_VERSION: 2.2.29
+  environment: &env
+    NODE_ENV: development
+    NODE_OPTIONS: "--max_old_space_size=3072"
+    # RAILS_ENV: ${RAILS_ENV:-development}
+  image: mygarden:1.0.0
+  tmpfs:
+    - /tmp
+
+x-backend: &backend
+  <<: *app
+  stdin_open: true
+  tty: true
+  volumes:
+    - .:/mygarden:cached
+    - rails_cache:/mygarden/tmp/cache
+    - bundle:/usr/local/bundle
+    - node_modules:/mygarden/node_modules
+    - packs:/mygarden/public/packs
+    - ~/.ssh/config:/root/.ssh/config:ro
+    - ~/.ssh/known_hosts:/root/.ssh/known_hosts:ro
+
+  environment:
+    <<: *env
+    BOOTSNAP_CACHE_DIR: /usr/local/bundle/_bootsnap
+    WEBPACKER_DEV_SERVER_HOST: webpacker
+    WEB_CONCURRENCY: 2
+    EDITOR: vi
+  depends_on:
+    - mysql
+    - webpacker
+    # - redis
+
+services:
+  runner:
+    <<: *backend
+    command: /bin/bash
+
+  rails:
+    <<: *backend
+    command: bundle exec rails server -b 0.0.0.0
+    ports:
+      - 3111:3000
+
+  rails_test:
+    <<: *backend
+    environment:
+      BOOTSNAP_CACHE_DIR: /usr/local/bundle/_bootsnap
+      WEBPACKER_DEV_SERVER_HOST: webpacker
+      WEB_CONCURRENCY: 2
+      EDITOR: vi
+      RAILS_ENV: test
+      PIDFILE: tmp/pids/server_test.pid
+    command: bundle exec rails server -b 0.0.0.0 -p 4000 -P tmp/pids/server_test.pid
+    ports:
+      - 4000:4000
+
+  # sidekiq:
+  #   <<: *backend
+  #   command: bundle exec sidekiq -C config/sidekiq.yml
+
+  mysql:
+    build: ./docker/mysql
+    cap_add:
+      - SYS_NICE # CAP_SYS_NICE
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: root
+      TZ: Asia/Tokyo
+    volumes:
+      - mysql:/var/lib/mysql
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d
+      - ./docker/mysql/data:/data
+    healthcheck:
+      test: mysqladmin ping -h 127.0.0.1 -u $$MYSQL_USERNAME --password=$$MYSQL_PASSWORD
+      interval: 5s
+    ports:
+      - 33061:3306
+
+  # redis:
+  #   image: redis:6.0-alpine
+  #   volumes:
+  #     - redis:/data
+  #   ports:
+  #     - 6379:6379
+  #   healthcheck:
+  #     test: redis-cli ping
+  #     interval: 1s
+  #     timeout: 3s
+  #     retries: 30
+
+  # redisCommander:
+  #   image: rediscommander/redis-commander:latest
+  #   environment:
+  #     - REDIS_HOSTS=local:redis:6379
+  #   ports:
+  #     - 8081:8081
+  #   depends_on:
+  #     - redis
+
+  webpacker:
+    <<: *app
+    command: ./bin/webpack-dev-server
+    ports:
+      - 3035:3035
+    volumes:
+      - .:/mygarden:cached
+      - bundle:/usr/local/bundle
+      - node_modules:/mygarden/node_modules
+      - packs:/mygarden/public/packs
+    environment:
+      <<: *env
+      WEBPACKER_DEV_SERVER_HOST: 0.0.0.0
+
+  selenium_chrome:
+    image: selenium/standalone-chrome-debug
+    logging:
+      driver: none
+    ports:
+      - 5900:5900
+    depends_on:
+      - rails_test
+    environment:
+      VNC_NO_PASSWORD: 1
+
+volumes:
+  mysql:
+  # redis:
+  bundle:
+  node_modules:
+  rails_cache:
+  packs:
