@@ -112,7 +112,7 @@ SimpleForm.setup do |config|
   end
 
   # vertical multi select
-  config.wrappers :vertical_multi_select, tag: "div", class: "form-group", error_class: "form-group-invalid", valid_class: "form-group-valid" do |b|
+  config.wrappers :vertical_multi_select, tag: "div", class: "form-group col", error_class: "form-group-invalid", valid_class: "form-group-valid" do |b|
     b.use :html5
     b.optional :readonly
     b.use :label
