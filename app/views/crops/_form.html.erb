@@ -8,8 +8,20 @@
       <%= f.input :plant_name %>
     </div>
     <div class="row mb-3">
-      <%= f.input :started_at, html5: true %>
-      <%= f.input :ended_at, html5: true %>
+      <%= f.input :started_at, as: :string,
+        input_html: {
+          data: {
+            controller: "flatpickr",
+            flatpickr_date_format: "Y-m-d"
+          }
+        } %>
+      <%= f.input :ended_at, as: :string,
+        input_html: {
+          data: {
+            controller: "flatpickr",
+            flatpickr_date_format: "Y-m-d"
+          }
+        } %>
     </div>
     <div class="row mb-3">
       <%= f.input :quantity %>
