@@ -23,6 +23,12 @@ RSpec.describe "/crops", type: :request do
     skip("Add a hash of attributes invalid for your model")
   }
 
+  let(:user) { create(:user) }
+
+  before do
+    sign_in(user)
+  end
+
   describe "GET /index" do
     it "renders a successful response" do
       Crop.create! valid_attributes

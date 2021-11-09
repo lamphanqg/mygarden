@@ -11,6 +11,12 @@
   </head>
 
   <body>
+    <nav class="navbar navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="/">MyGarden</a>
+        <%= link_to "Logout", destroy_user_session_path, method: :delete, class: "navbar-text" %>
+      </div>
+    </nav>
     <main class="container">
       <%= yield %>
     </main>
