@@ -13,7 +13,7 @@ x-app: &app
     NODE_ENV: development
     NODE_OPTIONS: "--max_old_space_size=3072"
     # RAILS_ENV: ${RAILS_ENV:-development}
-  image: mygarden:1.0.0
+  image: railsimage:latest
   tmpfs:
     - /tmp
 
@@ -71,6 +71,7 @@ services:
 
   mysql:
     build: ./docker/mysql
+    image: mysqlimage:latest
     cap_add:
       - SYS_NICE # CAP_SYS_NICE
     environment:

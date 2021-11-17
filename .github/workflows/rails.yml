@@ -18,9 +18,52 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - run: docker-compose build
+      - name: Setup docker buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build rails image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          build-args: |
+            RUBY_VERSION=3.0.2
+            NODE_MAJOR=14
+            YARN_VERSION=1.22.15
+            BUNDLER_VERSION=2.2.29
+          load: true
+          tags: railsimage:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+      - name: Build mysql image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./docker/mysql/Dockerfile
+          load: true
+          tags: mysqlimage:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+
       - run: docker-compose run --rm runner bundle install
       - run: docker-compose run --rm runner yarn install --check-files
       - run: docker-compose run --rm -e RAILS_ENV=test runner bundle exec rails db:create
       - run: docker-compose run --rm runner standardrb
       - run: docker-compose run --rm runner bundle exec rspec
+
+      # Temp fix
+      # https://github.com/docker/build-push-action/issues/252
+      # https://github.com/moby/buildkit/issues/1896
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
